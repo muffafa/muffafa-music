@@ -16,6 +16,13 @@ a = Analysis(
         'tkinter.ttk',
         'tkinter.filedialog',
         'tkinter.messagebox',
+        'audioop',  # Required for pydub audio processing
+        'wave',     # Audio file format support
+        'array',    # Array operations for audio
+        'struct',   # Binary data handling
+        'math',     # Mathematical operations
+        'os',       # Operating system interface
+        'subprocess',  # For FFmpeg integration
     ],
     hookspath=[],
     hooksconfig={},
