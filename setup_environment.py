@@ -55,6 +55,27 @@ def install_dependencies():
     
     return True
 
+def check_ffmpeg():
+    """Check if FFmpeg is available"""
+    try:
+        result = subprocess.run(['ffmpeg', '-version'], 
+                              capture_output=True, 
+                              text=True, 
+                              timeout=5)
+        if result.returncode == 0:
+            print("✅ FFmpeg is available")
+            return True
+    except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
+        pass
+    
+    print("❌ FFmpeg is NOT available")
+    print("   Audio conversion will not work without FFmpeg")
+    if platform.system() == "Windows":
+        print("   Run: python install_ffmpeg_windows.py")
+    else:
+        print("   Install FFmpeg using your package manager")
+    return False
+
 def verify_modules():
     """Verify that all required modules can be imported"""
     print("\n🔍 Verifying module imports...")
@@ -130,6 +151,9 @@ def main():
         print("   3. Run this script again")
         return False
     
+    # Check FFmpeg
+    ffmpeg_ok = check_ffmpeg()
+    
     # Verify modules
     if not verify_modules():
         print("\n📦 Some modules are missing. Installing dependencies...")
@@ -138,11 +162,21 @@ def main():
             return False
     
     # Final verification
-    print("\n🎉 Environment setup completed successfully!")
+    if ffmpeg_ok:
+        print("\n🎉 Environment setup completed successfully!")
+    else:
+        print("\n⚠️  Environment setup completed with warnings!")
+        print("   FFmpeg is missing - audio conversion will not work")
+    
     print("\n📋 Next steps:")
-    print("   1. Run: python check_python_version.py")
-    print("   2. Run: python modern_app.py")
-    print("   3. For building installer: make windows-installer")
+    if not ffmpeg_ok and platform.system() == "Windows":
+        print("   1. Run: python install_ffmpeg_windows.py")
+        print("   2. Run: python check_python_version.py")
+        print("   3. Run: python modern_app.py")
+    else:
+        print("   1. Run: python check_python_version.py")
+        print("   2. Run: python modern_app.py")
+        print("   3. For building installer: make windows-installer")
     
     return True
 

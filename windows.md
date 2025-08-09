@@ -61,6 +61,7 @@ This guide covers both **building the installer** (for developers) and **install
 ### Prerequisites
 - Windows 10 or later
 - **Python 3.9.21 (REQUIRED)** - [Download specific version](https://www.python.org/downloads/release/python-3921/)
+- **FFmpeg (REQUIRED)** - [Download here](https://ffmpeg.org/download.html#build-windows)
 - NSIS (Nullsoft Scriptable Install System) - [Download here](https://nsis.sourceforge.io/)
 - Git for Windows (optional but recommended)
 
@@ -69,6 +70,10 @@ This guide covers both **building the installer** (for developers) and **install
 - The `audioop` module was **removed** in Python 3.13+
 - Using Python 3.13+ will cause "No module named audioop" errors
 
+⚠️ **IMPORTANT**: FFmpeg is required for audio processing:
+- Download from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (recommended)
+- Or use the automated installer script provided below
+
 ### Development Setup
 
 1. **Install Python**
@@ -76,7 +81,27 @@ This guide covers both **building the installer** (for developers) and **install
    - **Important**: Check "Add Python to PATH" during installation
    - Verify installation: `python --version`
 
-2. **Install NSIS**
+2. **Install FFmpeg**
+   
+   **Option A: Automated Installation (Recommended)**
+   ```cmd
+   # Run the automated FFmpeg installer
+   python install_ffmpeg_windows.py
+   ```
+   
+   **Option B: Manual Installation**
+   - Download FFmpeg from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/)
+   - Choose "release builds" → "ffmpeg-release-essentials.zip"
+   - Extract to `C:\ffmpeg`
+   - Add `C:\ffmpeg\bin` to your PATH environment variable
+   - Verify installation: `ffmpeg -version`
+   
+   **Option C: Using Chocolatey (if you have it)**
+   ```cmd
+   choco install ffmpeg
+   ```
+
+3. **Install NSIS**
    - Download from [nsis.sourceforge.io](https://nsis.sourceforge.io/)
    - Install with default settings
    - Verify installation: `makensis /VERSION`
