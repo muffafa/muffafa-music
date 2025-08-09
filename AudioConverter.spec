@@ -5,27 +5,18 @@ block_cipher = None
 # Import required modules for Windows compatibility
 import sys
 import os
-from PyInstaller.utils.hooks import collect_all
 
-# Collect all pydub dependencies
-pydub_datas, pydub_binaries, pydub_hiddenimports = collect_all('pydub')
-
-# Add audioop module explicitly for Windows
-audioop_binaries = []
-try:
-    import audioop
-    import importlib.util
-    spec = importlib.util.find_spec('audioop')
-    if spec and spec.origin:
-        audioop_binaries = [(spec.origin, 'audioop')]
-except ImportError:
-    pass
+# Simplified approach - avoid collect_all which can cause path issues
+# We'll rely on hidden imports instead of binary collection
+pydub_datas = []
+pydub_binaries = []
+pydub_hiddenimports = []
 
 a = Analysis(
     ['modern_app.py'],
     pathex=[],
-    binaries=pydub_binaries + audioop_binaries,
-    datas=pydub_datas,
+    binaries=[],
+    datas=[],
     hiddenimports=[
         'pydub',
         'pydub.audio_segment',
@@ -52,7 +43,7 @@ a = Analysis(
         'shutil',    # File operations
         'io',        # Input/output operations
         'logging',   # Logging support
-    ] + pydub_hiddenimports,
+    ],
     hookspath=['.'],  # Use current directory for custom hooks
     hooksconfig={},
     runtime_hooks=[],
