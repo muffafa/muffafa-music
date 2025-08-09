@@ -2,13 +2,25 @@
 
 block_cipher = None
 
+# Import required modules for Windows compatibility
+import sys
+import os
+from PyInstaller.utils.hooks import collect_all
+
+# Collect all pydub dependencies
+pydub_datas, pydub_binaries, pydub_hiddenimports = collect_all('pydub')
+
 a = Analysis(
     ['modern_app.py'],
     pathex=[],
-    binaries=[],
-    datas=[],
+    binaries=pydub_binaries,
+    datas=pydub_datas,
     hiddenimports=[
         'pydub',
+        'pydub.audio_segment',
+        'pydub.effects',
+        'pydub.silence',
+        'pydub.utils',
         'pytubefix',
         'ssl',
         'threading',
@@ -23,7 +35,12 @@ a = Analysis(
         'math',     # Mathematical operations
         'os',       # Operating system interface
         'subprocess',  # For FFmpeg integration
-    ],
+        'platform',  # Platform detection
+        'tempfile',  # Temporary file handling
+        'shutil',    # File operations
+        'io',        # Input/output operations
+        'logging',   # Logging support
+    ] + pydub_hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
