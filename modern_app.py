@@ -8,6 +8,12 @@ import os
 from pathlib import Path
 import sys
 
+# Import audioop fallback for Windows PyInstaller compatibility
+try:
+    import audioop_fallback
+except ImportError:
+    pass  # Fallback not needed if audioop works normally
+
 # Import our modular components
 from audio_converter import find_audio_files, batch_convert_audio
 from youtube_downloader import (

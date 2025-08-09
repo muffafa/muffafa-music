@@ -10,10 +10,21 @@ from PyInstaller.utils.hooks import collect_all
 # Collect all pydub dependencies
 pydub_datas, pydub_binaries, pydub_hiddenimports = collect_all('pydub')
 
+# Add audioop module explicitly for Windows
+audioop_binaries = []
+try:
+    import audioop
+    import importlib.util
+    spec = importlib.util.find_spec('audioop')
+    if spec and spec.origin:
+        audioop_binaries = [(spec.origin, 'audioop')]
+except ImportError:
+    pass
+
 a = Analysis(
     ['modern_app.py'],
     pathex=[],
-    binaries=pydub_binaries,
+    binaries=pydub_binaries + audioop_binaries,
     datas=pydub_datas,
     hiddenimports=[
         'pydub',
@@ -29,6 +40,7 @@ a = Analysis(
         'tkinter.filedialog',
         'tkinter.messagebox',
         'audioop',  # Required for pydub audio processing
+        'audioop_fallback',  # Fallback for Windows builds
         'wave',     # Audio file format support
         'array',    # Array operations for audio
         'struct',   # Binary data handling
@@ -41,7 +53,7 @@ a = Analysis(
         'io',        # Input/output operations
         'logging',   # Logging support
     ] + pydub_hiddenimports,
-    hookspath=[],
+    hookspath=['.'],  # Use current directory for custom hooks
     hooksconfig={},
     runtime_hooks=[],
     excludes=[],
