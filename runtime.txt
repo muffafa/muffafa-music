@@ -1,0 +1,9 @@
+# Python Runtime Requirements
+# This file specifies the exact Python version needed for this application
+# to avoid compatibility issues with deprecated modules like audioop
+
+python-3.9.21
+
+# Note: audioop module was deprecated in Python 3.11 and removed in Python 3.13
+# This application requires Python <= 3.12 for full audio processing functionality
+# Recommended version: 3.9.21 for maximum compatibility

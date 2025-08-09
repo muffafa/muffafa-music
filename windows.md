@@ -60,9 +60,14 @@ This guide covers both **building the installer** (for developers) and **install
 
 ### Prerequisites
 - Windows 10 or later
-- Python 3.7+ ([Download from python.org](https://www.python.org/downloads/))
+- **Python 3.9.21 (REQUIRED)** - [Download specific version](https://www.python.org/downloads/release/python-3921/)
 - NSIS (Nullsoft Scriptable Install System) - [Download here](https://nsis.sourceforge.io/)
 - Git for Windows (optional but recommended)
+
+⚠️ **IMPORTANT**: This application requires Python 3.9.21 or similar (≤3.12) because:
+- The `audioop` module was deprecated in Python 3.11
+- The `audioop` module was **removed** in Python 3.13+
+- Using Python 3.13+ will cause "No module named audioop" errors
 
 ### Development Setup
 
