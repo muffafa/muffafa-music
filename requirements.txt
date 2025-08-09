@@ -1,0 +1,13 @@
+# Core dependencies for audio processing
+pydub>=0.25.1
+
+# YouTube downloading (updated pytube fork)
+pytubefix>=6.9.0
+
+# For building installers and executables
+pyinstaller>=5.0.0
+
+# Additional dependencies (automatically installed with above packages)
+# aiohttp - HTTP client for pytubefix
+# setuptools - Python package development
+# packaging - Version handling for PyInstaller

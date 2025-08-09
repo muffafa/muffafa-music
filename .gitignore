@@ -1,5 +1,64 @@
+# Audio files directory
 music/
+downloads/
+*.mp3
+*.mp4
+*.m4a
+*.wav
+*.flac
 
+# Python virtual environment
 venv/
+env/
+.venv/
+.env/
 
+# Python cache and compiled files
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+
+# Build and distribution
+build/
+dist/
+*.whl
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
