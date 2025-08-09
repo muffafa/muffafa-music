@@ -19,8 +19,8 @@ RequestExecutionLevel admin
 
 # Interface Configuration
 !define MUI_ABORTWARNING
-!define MUI_ICON "icon.ico"  # Add your app icon here
-!define MUI_UNICON "icon.ico"
+!define MUI_ICON "icon\icon.ico"
+!define MUI_UNICON "icon\icon.ico"
 
 # Pages
 !insertmacro MUI_PAGE_WELCOME
