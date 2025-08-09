@@ -58,6 +58,8 @@ class ModernAudioConverter:
         self.converting = False
         self.downloading = False
         self.files_data = []
+        self.youtube_queue = []  # Queue for YouTube videos
+        self.current_youtube_index = 0  # Current video being downloaded
         
     def create_ui(self):
         """Create the user interface"""
@@ -170,12 +172,13 @@ class ModernAudioConverter:
         self.file_tree.configure(yscrollcommand=scrollbar.set)
         
     def create_youtube_tab(self):
-        """Create YouTube download tab"""
+        """Create YouTube download tab with queue system"""
         yt_frame = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(yt_frame, text="📺 YouTube İndirici")
         
         # Configure grid
         yt_frame.columnconfigure(1, weight=1)
+        yt_frame.rowconfigure(4, weight=1)
         
         # URL input
         ttk.Label(yt_frame, text="YouTube URL:", 
@@ -188,10 +191,11 @@ class ModernAudioConverter:
         self.url_entry = ttk.Entry(url_frame, textvariable=self.youtube_url)
         self.url_entry.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 5))
         self.url_entry.bind('<KeyRelease>', self.on_url_change)
+        self.url_entry.bind('<Return>', self.add_to_youtube_queue)
         
-        self.info_btn = ttk.Button(url_frame, text="ℹ️ Bilgi Al", 
-                                  command=self.get_video_info, state='disabled')
-        self.info_btn.grid(row=0, column=1)
+        self.add_url_btn = ttk.Button(url_frame, text="➕ Kuyruğa Ekle", 
+                                     command=self.add_to_youtube_queue, state='disabled')
+        self.add_url_btn.grid(row=0, column=1, padx=(5, 0))
         
         # Destination folder
         ttk.Label(yt_frame, text="İndirme Klasörü:", 
@@ -207,22 +211,60 @@ class ModernAudioConverter:
         ttk.Button(yt_dest_frame, text="Seç", 
                   command=self.choose_youtube_dest).grid(row=0, column=1)
         
-        # Video info frame
-        self.info_frame = ttk.LabelFrame(yt_frame, text="Video Bilgileri", padding="10")
-        self.info_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=10)
-        self.info_frame.columnconfigure(1, weight=1)
+        # Queue list
+        queue_frame = ttk.LabelFrame(yt_frame, text="İndirme Kuyruğu", padding="10")
+        queue_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(10, 0))
+        queue_frame.columnconfigure(0, weight=1)
+        queue_frame.rowconfigure(0, weight=1)
         
-        # Download button
-        self.download_btn = ttk.Button(yt_frame, text="🎵 MP3 Olarak İndir", 
-                                      command=self.start_youtube_download, state='disabled')
-        self.download_btn.grid(row=5, column=0, columnspan=2, pady=10)
+        # Treeview for YouTube queue
+        yt_columns = ('title', 'duration', 'channel', 'status', 'progress')
+        self.youtube_tree = ttk.Treeview(queue_frame, columns=yt_columns, show='headings', height=8)
         
-        # Progress bar for YouTube download
-        self.yt_progress = ttk.Progressbar(yt_frame, mode='indeterminate')
-        self.yt_progress.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(0, 10))
+        self.youtube_tree.heading('title', text='Video Başlığı')
+        self.youtube_tree.heading('duration', text='Süre')
+        self.youtube_tree.heading('channel', text='Kanal')
+        self.youtube_tree.heading('status', text='Durum')
+        self.youtube_tree.heading('progress', text='İlerleme')
+        
+        self.youtube_tree.column('title', width=300)
+        self.youtube_tree.column('duration', width=80)
+        self.youtube_tree.column('channel', width=150)
+        self.youtube_tree.column('status', width=120)
+        self.youtube_tree.column('progress', width=100)
+        
+        self.youtube_tree.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Bind selection event
+        self.youtube_tree.bind('<<TreeviewSelect>>', self.on_youtube_tree_select)
+        
+        # Scrollbar for YouTube treeview
+        yt_scrollbar = ttk.Scrollbar(queue_frame, orient=tk.VERTICAL, command=self.youtube_tree.yview)
+        yt_scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.youtube_tree.configure(yscrollcommand=yt_scrollbar.set)
+        
+        # Queue control buttons
+        queue_btn_frame = ttk.Frame(yt_frame)
+        queue_btn_frame.grid(row=5, column=0, columnspan=2, pady=10)
+        
+        self.clear_queue_btn = ttk.Button(queue_btn_frame, text="🗑️ Kuyruğu Temizle", 
+                                         command=self.clear_youtube_queue, state='disabled')
+        self.clear_queue_btn.grid(row=0, column=0, padx=(0, 10))
+        
+        self.remove_selected_btn = ttk.Button(queue_btn_frame, text="❌ Seçileni Kaldır", 
+                                             command=self.remove_selected_youtube, state='disabled')
+        self.remove_selected_btn.grid(row=0, column=1, padx=(0, 10))
+        
+        self.download_queue_btn = ttk.Button(queue_btn_frame, text="🚀 Kuyruğu İndir", 
+                                            command=self.start_youtube_queue_download, state='disabled')
+        self.download_queue_btn.grid(row=0, column=2)
+        
+        # Progress bar for YouTube queue download
+        self.yt_progress = ttk.Progressbar(yt_frame, mode='determinate')
+        self.yt_progress.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 5))
         
         # YouTube status
-        self.yt_status = ttk.Label(yt_frame, text="")
+        self.yt_status = ttk.Label(yt_frame, text="Kuyruğa video eklemek için YouTube URL'si girin")
         self.yt_status.grid(row=7, column=0, columnspan=2)
         
     def choose_source_folder(self):
@@ -238,11 +280,12 @@ class ModernAudioConverter:
             self.dest_folder.set(folder)
             
     def choose_youtube_dest(self):
-        """Choose YouTube download destination"""
-        folder = filedialog.askdirectory(title="İndirme Klasörü Seç")
+        """Choose YouTube destination folder"""
+        folder = filedialog.askdirectory(title="İndirme Klasörü Seçin")
         if folder:
             self.youtube_dest.set(folder)
-            self.update_download_button_state()
+            # Update queue buttons if there are items
+            self.update_youtube_queue_buttons()
             
     def scan_files(self):
         """Scan for audio files"""
@@ -344,30 +387,12 @@ class ModernAudioConverter:
         self.status_text.set("Hata oluştu")
         messagebox.showerror("Hata", f"Dönüştürme sırasında hata oluştu:\n{error_msg}")
         
-    def on_url_change(self, event=None):
-        """Handle URL change"""
-        url = self.youtube_url.get()
-        if validate_youtube_url(url):
-            self.info_btn.config(state='normal')
-            self.url_entry.config(foreground='black')
-        else:
-            self.info_btn.config(state='disabled')
-            if url:
-                self.url_entry.config(foreground='red')
-            else:
-                self.url_entry.config(foreground='black')
-                
-        self.update_download_button_state()
+    def on_url_change_old(self, event=None):
+        """Handle URL change (old method - deprecated)"""
+        # This method is no longer used with the queue system
+        pass
         
-    def update_download_button_state(self):
-        """Update download button state"""
-        url_valid = validate_youtube_url(self.youtube_url.get())
-        dest_valid = bool(self.youtube_dest.get())
-        
-        if url_valid and dest_valid and not self.downloading:
-            self.download_btn.config(state='normal')
-        else:
-            self.download_btn.config(state='disabled')
+
             
     def get_video_info(self):
         """Get YouTube video information"""
@@ -449,17 +474,352 @@ class ModernAudioConverter:
         self.yt_status.config(text=f"📥 {message}", foreground='blue')
         
     def download_complete(self, success, file_path, message):
-        """Handle download completion"""
+        """Handle download completion (old method - deprecated)"""
+        # This method is no longer used with the queue system
         self.downloading = False
         self.yt_progress.stop()
-        self.update_download_button_state()
         
         if success:
             self.yt_status.config(text=f"✅ {message}", foreground='green')
             messagebox.showinfo("Başarılı", f"🎉 Video başarıyla indirildi!\n\nDosya: {os.path.basename(file_path)}\nKonum: {file_path}")
         else:
             self.yt_status.config(text=f"❌ {message}", foreground='red')
-            messagebox.showerror("Hata", f"❌ İndirme hatası:\n{message}")
+    
+    # YouTube Queue Management Methods
+    def on_youtube_tree_select(self, event=None):
+        """Handle YouTube tree selection changes"""
+        self.update_youtube_queue_buttons()
+    
+    def on_url_change(self, event=None):
+        """Handle URL entry changes"""
+        url = self.youtube_url.get().strip()
+        if validate_youtube_url(url):
+            self.add_url_btn.config(state='normal')
+        else:
+            self.add_url_btn.config(state='disabled')
+    
+    def add_to_youtube_queue(self, event=None):
+        """Add YouTube URL to download queue"""
+        url = self.youtube_url.get().strip()
+        dest = self.youtube_dest.get().strip()
+        
+        if not validate_youtube_url(url):
+            messagebox.showwarning("Uyarı", "Lütfen geçerli bir YouTube URL'si girin.")
+            return
+            
+        if not dest:
+            messagebox.showwarning("Uyarı", "Lütfen indirme klasörü seçin.")
+            return
+        
+        # Check if URL already in queue
+        for item in self.youtube_queue:
+            if item['url'] == url:
+                messagebox.showwarning("Uyarı", "Bu video zaten kuyrukta!")
+                return
+        
+        self.yt_status.config(text="Video bilgileri alınıyor...", foreground='blue')
+        self.add_url_btn.config(state='disabled')
+        
+        # Get video info in background thread
+        thread = threading.Thread(target=self.fetch_and_add_video, args=(url, dest), daemon=True)
+        thread.start()
+    
+    def fetch_and_add_video(self, url, dest):
+        """Fetch video info and add to queue"""
+        try:
+            success, info, error = get_youtube_info(url)
+            self.root.after(0, self.add_video_to_queue, success, info, error, url, dest)
+        except Exception as e:
+            self.root.after(0, self.add_video_to_queue, False, None, str(e), url, dest)
+    
+    def add_video_to_queue(self, success, info, error, url, dest):
+        """Add video to queue after getting info"""
+        self.add_url_btn.config(state='normal')
+        
+        if success and info:
+            # Check if file already exists in destination
+            safe_title = self.sanitize_filename(info['title'])
+            potential_filename = f"{safe_title}.mp3"
+            full_path = os.path.join(dest, potential_filename)
+            
+            # Check for existing file
+            if os.path.exists(full_path):
+                response = messagebox.askyesno(
+                    "Dosya Zaten Mevcut", 
+                    f"'{potential_filename}' dosyası zaten mevcut!\n\n"
+                    f"Konum: {dest}\n\n"
+                    f"Yine de kuyruğa eklemek istiyor musunuz?"
+                )
+                if not response:
+                    self.yt_status.config(text=f"❌ '{info['title'][:30]}...' zaten mevcut - eklenmedi", foreground='orange')
+                    return
+            
+            # Add to queue
+            queue_item = {
+                'url': url,
+                'dest': dest,
+                'title': info['title'],
+                'duration': format_duration(info['length']),
+                'channel': info['author'],
+                'status': 'Beklemede',
+                'progress': '0%',
+                'filename': potential_filename,
+                'full_path': full_path
+            }
+            
+            self.youtube_queue.append(queue_item)
+            
+            # Add to treeview
+            self.youtube_tree.insert('', 'end', values=(
+                queue_item['title'][:50] + '...' if len(queue_item['title']) > 50 else queue_item['title'],
+                queue_item['duration'],
+                queue_item['channel'][:20] + '...' if len(queue_item['channel']) > 20 else queue_item['channel'],
+                queue_item['status'],
+                queue_item['progress']
+            ))
+            
+            # Clear URL entry
+            self.youtube_url.set('')
+            
+            # Update button states
+            self.update_youtube_queue_buttons()
+            
+            file_exists_msg = " (dosya mevcut - üzerine yazılacak)" if os.path.exists(full_path) else ""
+            self.yt_status.config(text=f"✅ '{queue_item['title'][:30]}...' kuyruğa eklendi{file_exists_msg}", foreground='green')
+        else:
+            self.yt_status.config(text=f"❌ Video bilgileri alınamadı: {error}", foreground='red')
+    
+    def sanitize_filename(self, filename):
+        """Sanitize filename for safe file system usage"""
+        # Remove or replace invalid characters
+        invalid_chars = '<>:"/\\|?*'
+        for char in invalid_chars:
+            filename = filename.replace(char, '_')
+        
+        # Remove leading/trailing spaces and dots
+        filename = filename.strip(' .')
+        
+        # Limit length
+        if len(filename) > 200:
+            filename = filename[:200]
+        
+        return filename
+    
+    def update_youtube_queue_buttons(self):
+        """Update YouTube queue button states"""
+        has_items = len(self.youtube_queue) > 0
+        has_selection = bool(self.youtube_tree.selection())
+        
+        self.clear_queue_btn.config(state='normal' if has_items and not self.downloading else 'disabled')
+        self.remove_selected_btn.config(state='normal' if has_selection and not self.downloading else 'disabled')
+        self.download_queue_btn.config(state='normal' if has_items and not self.downloading else 'disabled')
+    
+    def clear_youtube_queue(self):
+        """Clear all items from YouTube queue"""
+        if messagebox.askyesno("Onay", "Tüm kuyruğu temizlemek istediğinizden emin misiniz?"):
+            self.youtube_queue.clear()
+            self.youtube_tree.delete(*self.youtube_tree.get_children())
+            self.update_youtube_queue_buttons()
+            self.yt_status.config(text="Kuyruk temizlendi")
+    
+    def remove_selected_youtube(self):
+        """Remove selected item from YouTube queue"""
+        selection = self.youtube_tree.selection()
+        if not selection:
+            return
+        
+        # Get selected item index
+        item = selection[0]
+        index = self.youtube_tree.index(item)
+        
+        # Remove from queue and treeview
+        if 0 <= index < len(self.youtube_queue):
+            removed_item = self.youtube_queue.pop(index)
+            self.youtube_tree.delete(item)
+            self.update_youtube_queue_buttons()
+            self.yt_status.config(text=f"'{removed_item['title'][:30]}...' kuyruktan kaldırıldı")
+    
+    def start_youtube_queue_download(self):
+        """Start downloading YouTube queue with smart processing"""
+        if not self.youtube_queue:
+            return
+        
+        if not self.youtube_dest.get():
+            messagebox.showwarning("Uyarı", "Lütfen indirme klasörü seçin.")
+            return
+        
+        # Analyze queue to show summary
+        total_items = len(self.youtube_queue)
+        existing_files = 0
+        new_downloads = 0
+        failed_retries = 0
+        
+        for i, item in enumerate(self.youtube_queue):
+            file_exists = os.path.exists(item.get('full_path', ''))
+            tree_items = self.youtube_tree.get_children()
+            
+            if i < len(tree_items):
+                current_status = self.youtube_tree.item(tree_items[i], 'values')[3]
+                already_completed = '✅' in current_status
+                is_failed = '❌' in current_status
+                
+                if file_exists and already_completed:
+                    existing_files += 1
+                elif is_failed:
+                    failed_retries += 1
+                else:
+                    new_downloads += 1
+            else:
+                new_downloads += 1
+        
+        # Show summary dialog
+        summary_msg = f"Kuyruk İşleme Özeti:\n\n"
+        summary_msg += f"Toplam video: {total_items}\n"
+        summary_msg += f"Zaten mevcut (atlanacak): {existing_files}\n"
+        summary_msg += f"Yeni indirme: {new_downloads}\n"
+        summary_msg += f"Hatalı (tekrar denenecek): {failed_retries}\n\n"
+        
+        if existing_files > 0:
+            summary_msg += "Not: Zaten mevcut dosyalar atlanacak.\n"
+        
+        if new_downloads == 0 and failed_retries == 0:
+            messagebox.showinfo("Bilgi", "Tüm dosyalar zaten mevcut. İndirilecek yeni dosya yok.")
+            return
+        
+        summary_msg += f"\n{new_downloads + failed_retries} dosya işlenecek. Devam etmek istiyor musunuz?"
+        
+        if not messagebox.askyesno("Kuyruğu Başlat", summary_msg):
+            return
+        
+        self.downloading = True
+        self.current_youtube_index = 0
+        self.yt_progress.config(mode='determinate', maximum=len(self.youtube_queue), value=0)
+        self.update_youtube_queue_buttons()
+        
+        # Start processing queue
+        self.download_next_youtube_video()
+    
+    def download_next_youtube_video(self):
+        """Download next video in queue"""
+        # Find next video that needs to be downloaded
+        while self.current_youtube_index < len(self.youtube_queue):
+            current_item = self.youtube_queue[self.current_youtube_index]
+            tree_items = self.youtube_tree.get_children()
+            
+            if self.current_youtube_index < len(tree_items):
+                item_id = tree_items[self.current_youtube_index]
+                current_status = self.youtube_tree.item(item_id, 'values')[3]
+                
+                # Check if file already exists and was successfully downloaded
+                file_exists = os.path.exists(current_item.get('full_path', ''))
+                already_completed = '✅' in current_status
+                
+                if file_exists and already_completed:
+                    # Skip this file - already downloaded successfully
+                    values = list(self.youtube_tree.item(item_id, 'values'))
+                    values[3] = '✅ Zaten Mevcut'
+                    values[4] = '100%'
+                    self.youtube_tree.item(item_id, values=values)
+                    
+                    self.yt_status.config(text=f"Atlanıyor: {current_item['title'][:40]}... (zaten mevcut)", foreground='orange')
+                    
+                    # Update progress and move to next
+                    self.yt_progress.config(value=self.current_youtube_index + 1)
+                    self.current_youtube_index += 1
+                    
+                    # Small delay before checking next item
+                    self.root.after(500, self.download_next_youtube_video)
+                    return
+            
+            # This item needs to be downloaded
+            break
+        
+        if self.current_youtube_index >= len(self.youtube_queue):
+            # All downloads complete
+            self.youtube_queue_complete()
+            return
+        
+        current_item = self.youtube_queue[self.current_youtube_index]
+        
+        # Update status in treeview
+        tree_items = self.youtube_tree.get_children()
+        if self.current_youtube_index < len(tree_items):
+            item_id = tree_items[self.current_youtube_index]
+            values = list(self.youtube_tree.item(item_id, 'values'))
+            values[3] = 'İndiriliyor...'
+            values[4] = '0%'
+            self.youtube_tree.item(item_id, values=values)
+        
+        self.yt_status.config(text=f"İndiriliyor: {current_item['title'][:40]}...", foreground='blue')
+        
+        # Start download in background thread
+        thread = threading.Thread(
+            target=self.download_youtube_queue_item, 
+            args=(current_item['url'], current_item['dest'], self.current_youtube_index), 
+            daemon=True
+        )
+        thread.start()
+    
+    def download_youtube_queue_item(self, url, dest, index):
+        """Download single YouTube video from queue"""
+        def progress_callback(message):
+            self.root.after(0, self.update_youtube_queue_progress, message, index)
+        
+        try:
+            success, file_path, message = download_youtube_audio(url, dest, progress_callback)
+            self.root.after(0, self.youtube_queue_item_complete, success, file_path, message, index)
+        except Exception as e:
+            self.root.after(0, self.youtube_queue_item_complete, False, "", str(e), index)
+    
+    def update_youtube_queue_progress(self, message, index):
+        """Update progress for current YouTube download"""
+        # Update treeview item progress
+        tree_items = self.youtube_tree.get_children()
+        if index < len(tree_items):
+            item_id = tree_items[index]
+            values = list(self.youtube_tree.item(item_id, 'values'))
+            values[4] = '50%'  # Simple progress indication
+            self.youtube_tree.item(item_id, values=values)
+    
+    def youtube_queue_item_complete(self, success, file_path, message, index):
+        """Handle completion of single YouTube download"""
+        # Update treeview item status
+        tree_items = self.youtube_tree.get_children()
+        if index < len(tree_items):
+            item_id = tree_items[index]
+            values = list(self.youtube_tree.item(item_id, 'values'))
+            if success:
+                values[3] = '✅ Tamamlandı'
+                values[4] = '100%'
+            else:
+                values[3] = '❌ Hata'
+                values[4] = '0%'
+            self.youtube_tree.item(item_id, values=values)
+        
+        # Update overall progress
+        self.yt_progress.config(value=self.current_youtube_index + 1)
+        
+        # Move to next video
+        self.current_youtube_index += 1
+        
+        # Continue with next video after a short delay
+        self.root.after(1000, self.download_next_youtube_video)
+    
+    def youtube_queue_complete(self):
+        """Handle completion of entire YouTube queue"""
+        self.downloading = False
+        self.current_youtube_index = 0
+        self.update_youtube_queue_buttons()
+        
+        # Count successful downloads
+        successful = sum(1 for item in self.youtube_tree.get_children() 
+                        if '✅' in self.youtube_tree.item(item, 'values')[3])
+        total = len(self.youtube_queue)
+        
+        self.yt_status.config(text=f"✅ Kuyruk tamamlandı: {successful}/{total} video indirildi", foreground='green')
+        
+        if successful > 0:
+            messagebox.showinfo("Tamamlandı", f"🎉 YouTube kuyruğu tamamlandı!\n\n{successful}/{total} video başarıyla indirildi.")
             
     def run(self):
         """Run the application"""

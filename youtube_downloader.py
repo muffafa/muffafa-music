@@ -46,12 +46,12 @@ def get_youtube_info(url):
         url: YouTube video URL
         
     Returns:
-        Dictionary with video info or None if failed
+        Tuple: (success, info_dict, error_message)
     """
     try:
         yt = YouTube(url)
         
-        return {
+        info = {
             'title': yt.title,
             'author': yt.author,
             'length': yt.length,
@@ -60,9 +60,11 @@ def get_youtube_info(url):
             'thumbnail_url': yt.thumbnail_url,
             'video_id': yt.video_id
         }
+        
+        return True, info, None
     except Exception as e:
-        # Silently handle error to avoid console output
-        return None
+        # Return error information
+        return False, None, str(e)
 
 
 def download_youtube_audio(url, dest_folder, progress_callback=None):
