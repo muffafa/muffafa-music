@@ -312,8 +312,21 @@ class ModernAudioConverter:
         
         if self.files_data:
             convertible_count = 0
-            for src_path, dest_path, fname, duration, status in self.files_data:
-                item_id = self.file_tree.insert('', 'end', values=(fname, duration, status, ''))
+            for file_info in self.files_data:
+                # Extract information from dictionary
+                fname = file_info['filename']
+                exists = file_info['exists']
+                size = file_info['size']
+                
+                # Format file size
+                size_mb = size / (1024 * 1024)
+                size_str = f"{size_mb:.1f} MB"
+                
+                # Determine status
+                status = "Zaten var" if exists else "Dönüştürülecek"
+                
+                # Insert into treeview
+                item_id = self.file_tree.insert('', 'end', values=(fname, size_str, status, ''))
                 if status == "Dönüştürülecek":
                     convertible_count += 1
                     
@@ -375,15 +388,31 @@ class ModernAudioConverter:
         self.convert_btn.config(state='normal')
         self.scan_btn.config(state='normal')
         
-        success_count = sum(1 for _, success, _ in results if success)
-        total_count = len(results)
+        # Results is now a dictionary from batch_convert_audio
+        success_count = results['success']
+        failed_count = results['failed']
+        skipped_count = results['skipped']
+        total_count = success_count + failed_count + skipped_count
         
         self.status_text.set(f"Tamamlandı: {success_count}/{total_count} dosya başarıyla dönüştürüldü")
         
-        if success_count == total_count:
-            messagebox.showinfo("Başarılı", f"🎉 Tüm dosyalar başarıyla dönüştürüldü!\n\n{success_count}/{total_count} dosya")
+        # Show detailed results
+        if failed_count == 0:
+            if skipped_count > 0:
+                messagebox.showinfo("Başarılı", f"🎉 İşlem tamamlandı!\n\n✅ Dönüştürülen: {success_count}\n⏭️ Atlanan: {skipped_count}")
+            else:
+                messagebox.showinfo("Başarılı", f"🎉 Tüm dosyalar başarıyla dönüştürüldü!\n\n{success_count}/{total_count} dosya")
         else:
-            messagebox.showwarning("Kısmen Başarılı", f"⚠️ {success_count}/{total_count} dosya başarıyla dönüştürüldü")
+            error_details = "\n".join(results['errors'][:3])  # Show first 3 errors
+            if len(results['errors']) > 3:
+                error_details += f"\n... ve {len(results['errors']) - 3} hata daha"
+            
+            messagebox.showwarning("Kısmen Başarılı", 
+                                 f"⚠️ İşlem tamamlandı:\n\n"
+                                 f"✅ Başarılı: {success_count}\n"
+                                 f"❌ Başarısız: {failed_count}\n"
+                                 f"⏭️ Atlanan: {skipped_count}\n\n"
+                                 f"Hatalar:\n{error_details}")
             
     def conversion_error(self, error_msg):
         """Handle conversion error"""
